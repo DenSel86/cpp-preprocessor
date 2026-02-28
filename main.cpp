@@ -14,8 +14,78 @@ path operator""_p(const char* data, std::size_t sz) {
     return path(data, data + sz);
 }
 
+bool OpenFile(ifstream& ifs, const path& path_filename, const path& current_path, const vector<path>& include_directories) {
+    path path_full_filename;
+    if (!current_path.empty()) {
+        path_full_filename = current_path / path_filename;
+        ifs.open(path_full_filename.string());
+        if (ifs.is_open()) {
+            return true;
+        }
+    }
+    for (const path& include_directory : include_directories) {
+        path_full_filename = include_directory / path_filename;
+        ifs.open(path_full_filename.string());
+        if (ifs.is_open()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PreprocessRecursion(ifstream& ifs, ofstream& ofs, const path& path_parent_file, const vector<path>& include_directories) {
+    static regex reg_include_quotes(R"raw(\s*#\s*include\s*"([^"]*)"\s*)raw");
+    static regex reg_include_brackets(R"raw(\s*#\s*include\s*<([^>]*)>\s*)raw");
+
+    const path parent_path = path_parent_file.parent_path();
+
+    string str;
+    int number_line = 0;
+    while (getline(ifs, str)) {
+        ++number_line;
+        ifstream ifs_next;
+        path current_dir;
+        smatch m;
+        if (regex_match(str, m, reg_include_quotes)) {
+            // указываем текущую директорию для поиска файла
+            current_dir = parent_path;
+        } else if(regex_match(str, m, reg_include_brackets)) {
+            // текущая директория для поиска файла не присваивается, игнорируется
+        } else {
+            ofs << str << endl;
+        }
+        if (!m.empty()) {
+            path path_next_file = string(m[1]);
+            if (OpenFile(ifs_next, path_next_file, current_dir, include_directories)) {
+                 if(!PreprocessRecursion(ifs_next, ofs, current_dir / path_next_file, include_directories)) {
+                    return false;
+                }
+            } else {
+                cout << "unknown include file " << path_next_file.string() 
+                     << " at file " << path_parent_file.string() 
+                     << " at line "s << number_line << endl;
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 // напишите эту функцию
-bool Preprocess(const path& in_file, const path& out_file, const vector<path>& include_directories);
+bool Preprocess(const path& in_file, const path& out_file, const vector<path>& include_directories) {
+    ifstream ifs(in_file.string());
+    if (!ifs.is_open()) {
+        return false;
+    }
+
+    ofstream ofs(out_file.string());
+    if (!ifs.is_open()) {
+        return false;
+    }
+
+    return PreprocessRecursion(ifs, ofs, in_file, include_directories);
+}
 
 string GetFileContents(string file) {
     ifstream stream(file);
