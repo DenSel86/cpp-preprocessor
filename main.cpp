@@ -45,17 +45,17 @@ bool PreprocessRecursion(ifstream& ifs, ofstream& ofs, const path& path_parent_f
         ++number_line;
         ifstream ifs_next;
         path current_dir;
-        smatch m;
-        if (regex_match(str, m, reg_include_quotes)) {
+        smatch results_of_match;
+        if (regex_match(str, results_of_match, reg_include_quotes)) {
             // указываем текущую директорию для поиска файла
             current_dir = parent_path;
-        } else if(regex_match(str, m, reg_include_brackets)) {
+        } else if(regex_match(str, results_of_match, reg_include_brackets)) {
             // текущая директория для поиска файла не присваивается, игнорируется
         } else {
             ofs << str << endl;
         }
-        if (!m.empty()) {
-            path path_next_file = string(m[1]);
+        if (!results_of_match.empty()) {
+            path path_next_file = string(results_of_match[1]);
             if (OpenFile(ifs_next, path_next_file, current_dir, include_directories)) {
                  if(!PreprocessRecursion(ifs_next, ofs, current_dir / path_next_file, include_directories)) {
                     return false;
@@ -72,7 +72,6 @@ bool PreprocessRecursion(ifstream& ifs, ofstream& ofs, const path& path_parent_f
     return true;
 }
 
-// напишите эту функцию
 bool Preprocess(const path& in_file, const path& out_file, const vector<path>& include_directories) {
     ifstream ifs(in_file.string());
     if (!ifs.is_open()) {
